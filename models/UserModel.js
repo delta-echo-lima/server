@@ -48,6 +48,15 @@ const userSchema = new mongoose.Schema({
     }]
 })
 
+//this allows virtual attributes, its virtual because it does not actually store data in database, it's
+//just a way for mongoose to know how the items are related
+//'tasks is the name of attribute of users task
+userSchema.virtual('tasks',{
+    ref:'task', //name of the variable exported by the task model
+    localField:'_id',//the field that relates the objects (the users_id in DB is the owner.id on the task
+    foreignField:'owner' //name of the field in other model it is related to the owner in the task model
+})
+
 //Remove data that we want to keep hiding. This will run even though it is never called. It's built into Express
 //and is actually called behind the scenes with JSON.stringify on the res.object that is returned. It's like jumping on
 //a train that is already rolling for the user. It prevents having to call a function to hide data everytime the users' info

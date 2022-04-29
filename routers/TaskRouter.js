@@ -5,7 +5,11 @@ const router = express.Router();
 
 //Create a new user from the user model using request body (from forms)
 router.post('/tasks', auth, async (req,res) => {
-    const task = new TaskCollection(req.body);
+    //const task = new TaskCollection(req.body);
+    const task = new TaskCollection({
+        ...req.body,
+        owner: req.user._id // the owner id that is on the req.user
+    })
     try{
         await task.save();
         res.status(201).send(task);
