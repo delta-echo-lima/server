@@ -24,15 +24,15 @@ app.use(logger('dev'));
 app.use(UserRouter);
 app.use(TaskRouter);
 
-const main = async () => {
-    // const task = await TaskModel.findById('626b2e321996f210e09b082f')
-    // const task2 = await task.populate('owner')
-    // console.log(task2.name)
-
-    //This will get all the task that a user made by users ID
-    // const user = await UserCollection.findById('626b2e241996f210e09b082a')
-    // await user.populate('tasks')
-    // console.log(user.tasks)
-}
-main()
+// const main = async () => {
+//     const task = await TaskModel.findById('626b2e321996f210e09b082f')
+//     const task2 = await task.populate('owner')
+//     console.log(task2.name)
+//
+//     //*This will get all the task that a user made by users ID*//
+//     const user = await UserCollection.findById('626b2e241996f210e09b082a')
+//     await user.populate('tasks')
+//     console.log(user.tasks)
+// }
+// main()
 module.exports = app;

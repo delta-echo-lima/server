@@ -6,7 +6,7 @@ const auth = async (req,res,next) => {
         const token = req.header('Authorization').replace('Bearer ','');//remove 'Bearer' in the token
         const decoded = jwt.verify(token,'thisismynewcourse');//check if valid token
 
-        // Find user with ID that matches decoded ID stored in token and the token in the token array on the user
+        // Find user with ID that matches decoded ID stored in token, filtered by the token in the token array on the user
         const user = await UserCollection.findOne({ _id: decoded._id, 'tokens.token': token});
         if(!user){
             throw new Error();//No user found

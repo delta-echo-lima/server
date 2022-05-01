@@ -68,7 +68,6 @@ router.patch('/users/me', auth, async (req, res) => {
         return res.status(400).send('Invalid update.'); //invalid update, stop and send to browser
     }
     try {
-
         //go through all updates, must use bracket notation because updates are dynamic
         update.forEach((update) => req.user[update] = req.body[update]);
         await req.user.save();//ensures if password is changed it is rehashed in the pre('save') function in the model
