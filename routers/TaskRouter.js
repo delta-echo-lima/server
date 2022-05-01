@@ -12,7 +12,7 @@ router.post('/tasks', auth, async (req,res) => {
     })
     try{
         await task.save();
-        res.status(201).send(task);
+        res.status(201).send({ success:true, task:task });
     }catch(error){
         res.status(400).send(error);
     }
@@ -23,7 +23,7 @@ router.get('/tasks', auth, async (req,res) => {
     try{
         //const tasks =  await TaskCollection.find({owner:req.user._id});
         await req.user.populate('tasks');
-        res.status(201).send(req.user.tasks);//populate task off the req.user
+        res.status(201).send({success:true, task: req.user.tasks});//populate task off the req.user
     }catch(error){
         res.status(400).send(error);
     }
@@ -37,9 +37,9 @@ router.get('/tasks/:id', auth, async (req,res)=>{
         //_id is the value saved in database for all ID's
         const task = await TaskCollection.findOne({ _id:req.params.id, owner:req.user.id })
         if(!task){
-            return res.status(404).send();
+            return res.status(404).send({ success:false });
         }
-        res.status(201).send(task);
+        res.status(201).send({ success:true, task:task });
     }catch (error){
         res.status(500).send(error);
     }
@@ -51,20 +51,20 @@ router.patch('/tasks/:id', auth, async (req,res) => {
     const allowedUpdates = ['description','completed'];//Set the allowed updates on model fields
     const isValidUpdate = update.every((update)=> allowedUpdates.includes(update));//check every update requested to allowed updates
     if(!isValidUpdate){
-        return res.status(400).send('Invalid update.'); //invalid update, stop and send to browser
+        return res.status(400).send({ success:false, message:'Invalid update.' }); //invalid update, stop and send to browser
     }try{
         //const task = await TaskCollection.findById(req.params.id);//Find task from DB save as task
         //Update Task by task.id matched by owner.id which is same as user id (_id is always ID for DB)
         const task = await TaskCollection.findOne({_id:req.params.id, owner:req.user._id})
         //go through all updates must use bracket notation because updates are dynamic
         if(!task){
-            return res.status(404).send();//No task found set status send to browser
+            return res.status(404).send({ success:false, message:'Task not found.' });//No task found set status send to browser
         }
         update.forEach((update) => task[update] = req.body[update]);
         await task.save();//ensures tasks are re-saved in DB collection
-        res.send(task);//Task updated, send back updated user
+        res.send({success:true, task: task, message: 'Task updated.' });//Task updated, send back updated user
     }catch(error){
-        res.status(400).send();//log any unexpected errors
+        res.status(400).send(error);//log any unexpected errors
     }
 })
 
@@ -74,9 +74,9 @@ router.delete('/tasks/:id', auth, async (req,res)=>{
         //const task = await TaskCollection.findByIdAndDelete(req.params.id);//save task found in db
         const task = await TaskCollection.findByIdAndDelete({ _id:req.params.id, owner:req.user._id });
         if(!task){
-            res.status(400).send('No task found.');//No user found to delete
+            res.status(400).send({ success:false, message:'No task found.' });//No user found to delete
         }
-        res.status(200).send(task)//Send back deleted user info
+        res.status(200).send({ success:true, task:task, message:'Task was deleted.' })//Send back deleted user info
     }catch(error){
         res.status(500).send(error);//Send Error
     }

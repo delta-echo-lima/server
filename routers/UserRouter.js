@@ -5,11 +5,18 @@ const router = express.Router();
 
 //Create a new user from the user model using request body (from forms)
 router.post('/users', async (req, res) => {
+    //Checking for uniq email, this is supposed to validated as unique on model field, double-checking manually can't hurt
+    const emailIsNotUnique = await UserCollection.countDocuments({email:req.body.email});
+    console.log(emailIsNotUnique)
+    if(emailIsNotUnique){
+        return res.status(400).send({ success:false, message: 'Email is taking.' })
+    }
+    //let's create the user from the request.body
     const user = new UserCollection(req.body);
     try {
         await user.save();// (resolved) try this, if it works send status and user
         const token = await user.generateAuthToken();//Generate auth token
-        res.status(201).send({user,token});
+        res.status(201).send({ success:true, message:'Account created.', user, token });
     } catch (error) {
         res.status(400).send(error);// (rejected) if save not complete
     }
@@ -20,9 +27,9 @@ router.post('/users/login', async (req, res) => {
     try {
         const user = await UserCollection.findByCredentials(req.body.email, req.body.password);//Find user by email
         const token = await user.generateAuthToken();//Generate a token from function in the model
-        res.status(200).send({user, token});
-    } catch (e) {
-        res.status(400).send();
+        res.status(200).send({ success: true, user, token });
+    } catch (error) {
+        res.status(400).send(error);
     }
 })
 
@@ -36,9 +43,9 @@ router.post('/users/logout', auth, async (req,res) => {
             return token.token !== req.token;
         });
         await req.user.save();//save the user without saved token
-        res.status(200).send();//send back the good news, token removed, that will invalidate the auth on user
+        res.status(200).send({ success:true, message:'Logout successful.' });//send back the good news, token removed, that will invalidate the auth on user
     }catch(error) {
-        res.send(500).send();
+        res.send(500).send(error);
     }
 })
 
@@ -47,16 +54,16 @@ router.post('/users/logout-all', auth,async (req,res) => {
     try{
         req.user.tokens = [];//replace user tokens array with empty array
         req.user.save();//save  the new tokens array
-        res.status(200).send();//send status
+        res.status(200).send({ success:true, message:'Logout successful' });//send status
     }catch (error){
-        res.status(500).send();//something went wrong
+        res.status(500).send(error);//something went wrong
     }
 })
 
 //Get user that is currently logged in
 router.get('/users/me', auth, async (req, res) => {
     //const publicProfile = await user.getPublicProfile();//Create public profile to hide some user data
-    res.send(req.user);
+    res.send({ success:true, user: req.user });//no try/catch because this will not work if user not logged in
 })
 
 //Update the current user
@@ -65,15 +72,15 @@ router.patch('/users/me', auth, async (req, res) => {
     const allowedUpdates = ['name', 'password', 'email', 'age'];//Set the allowed updates on model fields
     const isValidUpdate = update.every((update) => allowedUpdates.includes(update));//check every update requested to allowed updates
     if (!isValidUpdate) {
-        return res.status(400).send('Invalid update.'); //invalid update, stop and send to browser
+        return res.status(400).send({ success:false, message: 'Invalid update.' }); //invalid update, stop and send to browser
     }
     try {
         //go through all updates, must use bracket notation because updates are dynamic
         update.forEach((update) => req.user[update] = req.body[update]);
         await req.user.save();//ensures if password is changed it is rehashed in the pre('save') function in the model
-        res.send({ user: req.user, message: 'Profile Updated.' });//UserRouter updated, send back updated user
+        res.send({ success: true, user: req.user, message: 'Profile Updated.' });//UserRouter updated, send back updated user
     }catch(error) {
-        res.status(400).send();//log any unexpected errors
+        res.status(400).send(error);//log any unexpected errors
     }
 })
 
@@ -81,7 +88,7 @@ router.patch('/users/me', auth, async (req, res) => {
 router.delete('/users/me', auth, async (req, res) => {
     try {
         await req.user.remove();//Remove the users profile from the database, this is permanent
-        res.status(200).send({ user: req.user, message: 'User deleted.' })//Send back deleted user info and message
+        res.status(200).send({ success:true, user: req.user, message: 'User deleted.' })//Send back deleted user info and message
     }catch (error) {
         res.status(500).send(error);//Send Error
     }
@@ -92,7 +99,7 @@ router.delete('/users/me', auth, async (req, res) => {
 router.get('/users', auth, async (req, res) => {
     try {
         const users = await UserCollection.find({});// (resolved) Try to get all users, send status and users
-        res.status(200).send(users);
+        res.status(200).send({ success: true, users: users });
     } catch (error) {
         res.status(500).send(error);// (rejected) send status and error
     }
@@ -104,9 +111,9 @@ router.get('/users/:id', async (req, res) => {
     try {
         const user = await UserCollection.findById(_id);
         if (!user) {
-            return res.status(404).send(error);
+            return res.status(404).send({ success:false, message:'No user found.' });
         }
-        res.status(201).send(user);
+        res.status(201).send({ success: true, user:user });
     }catch (error) {
         res.status(500).send(error);
     }
@@ -118,7 +125,7 @@ router.patch('/users/:id', async (req, res) => {
     const allowedUpdates = ['name', 'password', 'email', 'age'];//Set the allowed updates on model fields
     const isValidUpdate = update.every((update) => allowedUpdates.includes(update));//check every update requested to allowed updates
     if (!isValidUpdate) {
-        return res.status(400).send('Invalid update.'); //invalid update, stop and send to browser
+        return res.status(400).send({ success:false, message:'Invalid update.' }); //invalid update, stop and send to browser
     }
     try {
         const user = await UserCollection.findById(req.params.id);//Find user from DB save as user
@@ -126,11 +133,11 @@ router.patch('/users/:id', async (req, res) => {
         update.forEach((update) => user[update] = req.body[update]);
         await user.save();//ensures if password is changed it is rehashed in the pre('save') function in the model
         if (!user) {
-            return res.status(404).res.send(error);//No user found set status send to browser
+            return res.status(404).res.send({success:false, message:'No user found.'});//No user found set status send to browser
         }
-        res.send(user);//UserRouter updated, send back updated user
+        res.send({ success:true, user:user ,message: 'User profile updated.'});//UserRouter updated, send back updated user
     }catch(error) {
-        res.status(400).send();//log any unexpected errors
+        res.status(400).send(error);//log any unexpected errors
     }
 })
 
@@ -139,9 +146,9 @@ router.delete('/users/:id', async (req, res) => {
     try {
         const user = await UserCollection.findByIdAndDelete(req.params.id);//save user found in db
         if (!user) {
-            res.status(400).send('No user found.');//No user found to delete
+            res.status(400).send({ success:false, message:'No user found.' });//No user found to delete
         }
-        res.status(200).send(user)//Send back deleted user info
+        res.status(200).send({ success:true, user:user });//Send back deleted user info
     }catch (error) {
         res.status(500).send(error);//Send Error
     }
