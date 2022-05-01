@@ -17,52 +17,62 @@ router.post('/tasks', auth, async (req,res) => {
         res.status(400).send(error);
     }
 })
+
 //Get all task, if good send task, if error send error
-router.get('/tasks', async (req,res) => {
+router.get('/tasks', auth, async (req,res) => {
     try{
-        const tasks =  await TaskCollection.find({});
-        res.status(201).send(tasks);
+        //const tasks =  await TaskCollection.find({owner:req.user._id});
+        await req.user.populate('tasks');
+        res.status(201).send(req.user.tasks);//populate task off the req.user
     }catch(error){
         res.status(400).send(error);
     }
 })
-//Get task by id from request parameter, if good send task, if fail send error
-router.get('/tasks/:id',async (req,res)=>{
-    //const _id = (req.params.id );
+
+//Get task by id from request parameter, filtered by the owner of the ID if good send task, if fail send error
+router.get('/tasks/:id', auth, async (req,res)=>{
+    const _id = (req.params.id );
     try{
-        const task = await TaskCollection.findById(req.params.id);
+        //const task = await TaskCollection.findById the task.ID filter by users' owner.ID
+        //_id is the value saved in database for all ID's
+        const task = await TaskCollection.findOne({ _id:req.params.id, owner:req.user.id })
         if(!task){
-            return res.status(404).send(error);
+            return res.status(404).send();
         }
         res.status(201).send(task);
     }catch (error){
         res.status(500).send(error);
     }
 })
+
 //Update tasks
-router.patch('/tasks/:id',async (req,res) => {
+router.patch('/tasks/:id', auth, async (req,res) => {
     const update = Object.keys(req.body)//Get the keys from requested update
     const allowedUpdates = ['description','completed'];//Set the allowed updates on model fields
     const isValidUpdate = update.every((update)=> allowedUpdates.includes(update));//check every update requested to allowed updates
     if(!isValidUpdate){
         return res.status(400).send('Invalid update.'); //invalid update, stop and send to browser
     }try{
-        const task = await TaskCollection.findById(req.params.id);//Find task from DB save as task
+        //const task = await TaskCollection.findById(req.params.id);//Find task from DB save as task
+        //Update Task by task.id matched by owner.id which is same as user id (_id is always ID for DB)
+        const task = await TaskCollection.findOne({_id:req.params.id, owner:req.user._id})
         //go through all updates must use bracket notation because updates are dynamic
+        if(!task){
+            return res.status(404).send();//No task found set status send to browser
+        }
         update.forEach((update) => task[update] = req.body[update]);
         await task.save();//ensures tasks are re-saved in DB collection
-        if(!task){
-            return res.status(404).res.send(error);//No task found set status send to browser
-        }
         res.send(task);//Task updated, send back updated user
     }catch(error){
         res.status(400).send();//log any unexpected errors
     }
 })
-//Delete User
-router.delete('/tasks/:id',async (req,res)=>{
+
+//Delete Task
+router.delete('/tasks/:id', auth, async (req,res)=>{
     try{
-        const task = await TaskCollection.findByIdAndDelete(req.params.id);//save task found in db
+        //const task = await TaskCollection.findByIdAndDelete(req.params.id);//save task found in db
+        const task = await TaskCollection.findByIdAndDelete({ _id:req.params.id, owner:req.user._id });
         if(!task){
             res.status(400).send('No task found.');//No user found to delete
         }
